@@ -1,105 +1,130 @@
+#include "split.h"
+
 #include <cassert>
 #include <cstdlib>
 #include <iostream>
+#include <stdexcept>
 #include <string>
+#include <charconv>
 #include <vector>
-#include "split.h"
+#include <set>
+#include <ranges>
+#include <algorithm>
+
+class ipaddr
+{
+public:
+  ipaddr(const std::string &str)
+    : m_str(str), m_uint(str2ip(m_str))
+    {
+    }
+
+  static unsigned str2ip(const std::string &ipstr)
+  {
+    unsigned uint = 0;
+    const char *curpos = ipstr.data();
+    const char *endpos = ipstr.data() +ipstr.size();
+    for(int ii = 3; ii >= 0; --ii)
+    {
+      unsigned byte;
+      auto rez = std::from_chars(curpos, endpos, byte);
+      if (rez.ec != std::errc()) throw std::logic_error("can not convert IP component");
+      curpos = rez.ptr;
+      if(byte > 255) throw std::logic_error("component of the IP address is larger than 255");
+      if(curpos != endpos)
+      {
+        if(*curpos != '.') throw std::logic_error("IP component delimiter must be '.'");
+        ++curpos;
+      }
+      uint += byte << (ii*8);
+    }
+    return uint;
+  }
+
+  bool operator<(const ipaddr &other) const
+  {
+    return m_uint > other.m_uint;
+  }
+
+  std::string str() const
+  {
+      // for memory optimization convert from m_uint
+    return m_str;
+  }
+
+  unsigned uint() const
+  {
+    return m_uint;
+  }
+
+
+private:
+  std::string m_str;
+  unsigned m_uint;
+};
+
+
 
 int main(int, char const *[])
 {
   try
   {
-    std::vector<std::vector<std::string> > ip_pool;
-
-    for(std::string line; std::getline(std::cin, line);)
+    std::multiset<ipaddr> ip_pool;
+    int lineno{0};
+    for(std::string line; std::getline(std::cin, line);++lineno)
     {
-      std::vector<std::string> v = split(line, '\t');
-      ip_pool.push_back(split(v.at(0), '.'));
-    }
-
-      // TODO reverse lexicographically sort
-
-    for(std::vector<std::vector<std::string> >::const_iterator ip = ip_pool.cbegin(); ip != ip_pool.cend(); ++ip)
-    {
-      for(std::vector<std::string>::const_iterator ip_part = ip->cbegin(); ip_part != ip->cend(); ++ip_part)
-      {
-        if (ip_part != ip->cbegin())
-        {
-          std::cout << ".";
-
-        }
-        std::cout << *ip_part;
+      try {
+        ip_pool.emplace(line.substr(0, line.find_first_of('\t')));
       }
-      std::cout << std::endl;
+      catch(const std::exception &e)
+      {
+        std::cerr << "Error in line " << lineno << ": " << e.what() << std::endl;
+        return 101;
+      }
     }
 
-      // 222.173.235.246
-      // 222.130.177.64
-      // 222.82.198.61
-      // ...
-      // 1.70.44.170
-      // 1.29.168.152
-      // 1.1.234.8
+      // lexicographical sorted output
+    for(auto && ip : ip_pool)
+    {
+      std::cout << ip.str() << "\n";
+    }
 
-      // TODO filter by first byte and output
-      // ip = filter(1)
+      // filter by first byte = 1 and output
+    std::for_each(
+      ip_pool.lower_bound(ipaddr("1.255.255.255")),
+      ip_pool.upper_bound(ipaddr("1.0.0.0"      )),
+      [](const ipaddr &ip){std::cout << ip.str() << "\n";});
 
-      // 1.231.69.33
-      // 1.87.203.225
-      // 1.70.44.170
-      // 1.29.168.152
-      // 1.1.234.8
-
-      // TODO filter by first and second bytes and output
+      // filter by first and second bytes and output
       // ip = filter(46, 70)
 
-      // 46.70.225.39
-      // 46.70.147.26
-      // 46.70.113.73
-      // 46.70.29.76
+    std::for_each(
+      ip_pool.lower_bound(ipaddr("46.70.255.255")),
+      ip_pool.upper_bound(ipaddr("46.70.0.0"    )),
+      [](const ipaddr &ip){std::cout << ip.str() << "\n";});
 
-      // TODO filter by any byte and output
+
+      // filter by any byte and output
       // ip = filter_any(46)
 
-      // 186.204.34.46
-      // 186.46.222.194
-      // 185.46.87.231
-      // 185.46.86.132
-      // 185.46.86.131
-      // 185.46.86.131
-      // 185.46.86.22
-      // 185.46.85.204
-      // 185.46.85.78
-      // 68.46.218.208
-      // 46.251.197.23
-      // 46.223.254.56
-      // 46.223.254.56
-      // 46.182.19.219
-      // 46.161.63.66
-      // 46.161.61.51
-      // 46.161.60.92
-      // 46.161.60.35
-      // 46.161.58.202
-      // 46.161.56.241
-      // 46.161.56.203
-      // 46.161.56.174
-      // 46.161.56.106
-      // 46.161.56.106
-      // 46.101.163.119
-      // 46.101.127.145
-      // 46.70.225.39
-      // 46.70.147.26
-      // 46.70.113.73
-      // 46.70.29.76
-      // 46.55.46.98
-      // 46.49.43.85
-      // 39.46.86.85
-      // 5.189.203.46
+    std::for_each(
+      ip_pool.begin(), ip_pool.end(),
+      [](const ipaddr &ip){
+        unsigned uip = ip.uint();
+        for(int ii = 0; ii < 4; ++ii)
+        {
+          if(((uip >> (8 * ii)) & 255) == 46)
+          {
+            std::cout << ip.str() << "\n";
+            break;
+          }
+        }
+      });
   }
   catch(const std::exception &e)
   {
     std::cerr << e.what() << std::endl;
+    return 102;
   }
-
   return 0;
 }

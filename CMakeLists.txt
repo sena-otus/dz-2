@@ -7,6 +7,8 @@ project(ip_filter VERSION ${PROJECT_VERSION})
 
 option(WITH_GOOGLE_TEST "Whether to build Google test" ON)
 
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_CXX_CLANG_TIDY "clang-tidy-15")
 
 configure_file(version.h.in version.h)
 
@@ -14,7 +16,7 @@ add_executable(ip_filter ip_filter.cpp)
 add_library(split split.cpp)
 
 set_target_properties(ip_filter split PROPERTIES
-    CXX_STANDARD 17
+    CXX_STANDARD 20
     CXX_STANDARD_REQUIRED ON
 )
 
@@ -33,7 +35,7 @@ if(WITH_GOOGLE_TEST)
     add_executable(gtest_split gtest_split.cpp)
 
     set_target_properties(gtest_split PROPERTIES
-        CXX_STANDARD 17
+        CXX_STANDARD 20
         CXX_STANDARD_REQUIRED ON
     )
 
