@@ -3,7 +3,8 @@ cmake_minimum_required(VERSION 3.23)
 set(PATCH_VERSION "1" CACHE INTERNAL "Patch version")
 set(PROJECT_VERSION 0.0.${PATCH_VERSION})
 
-project(ipfilter VERSION ${PROJECT_VERSION})
+# underscores are not allowed in deb package name, but adding underscore to comply with requirements...
+project(ip_filter VERSION ${PROJECT_VERSION})
 
 option(WITH_TEST "Whether to build Google test" ON)
 option(WITH_CLANG_TIDY "use clang-tidy" OFF)
