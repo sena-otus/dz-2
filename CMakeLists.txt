@@ -5,17 +5,23 @@ set(PROJECT_VERSION 0.0.${PATCH_VERSION})
 
 project(ip_filter VERSION ${PROJECT_VERSION})
 
-option(WITH_GOOGLE_TEST "Whether to build Google test" ON)
+option(WITH_TEST "Whether to build Google test" ON)
+option(WITH_CLANG_TIDY "use clang-tidy" OFF)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-set(CMAKE_CXX_CLANG_TIDY "clang-tidy-15")
+
+if(WITH_CLANG_TIDY)
+  find_program(CLANGTIDY NAMES clang-tidy-15 clang-tidy-14 clang-tidy REQUIRED)
+  set(CMAKE_CXX_CLANG_TIDY "${CLANGTIDY}")
+  message(NOTICE "found and enabled CLANGTIDY=${CLANGTIDY}")
+endif()
 
 configure_file(version.h.in version.h)
 
 add_executable(ip_filter ip_filter.cpp)
-add_library(split split.cpp)
+add_library(ipaddr ipaddr.cpp)
 
-set_target_properties(ip_filter split PROPERTIES
+set_target_properties(ip_filter ipaddr PROPERTIES
     CXX_STANDARD 20
     CXX_STANDARD_REQUIRED ON
 )
@@ -25,26 +31,30 @@ target_include_directories(ip_filter
   )
 
 target_link_libraries(ip_filter PRIVATE
-    split
+    ipaddr
 )
 
-if(WITH_GOOGLE_TEST)
+if(WITH_TEST)
     find_package(GTest REQUIRED)
     enable_testing()
 
-    add_executable(gtest_split gtest_split.cpp)
+    add_executable(gtest_ipaddr gtest_ipaddr.cpp)
 
-    set_target_properties(gtest_split PROPERTIES
+    set_target_properties(gtest_ipaddr PROPERTIES
         CXX_STANDARD 20
         CXX_STANDARD_REQUIRED ON
     )
 
-    target_link_libraries(gtest_split
+    target_link_libraries(gtest_ipaddr
 	GTest::gtest_main
-        split
+        ipaddr
     )
 
-    gtest_discover_tests(gtest_split)
+    gtest_discover_tests(gtest_ipaddr)
+
+    find_program(SH_PROG sh REQUIRED)
+    find_program(MD5_PROG md5sum REQUIRED)
+    add_test(testmd5 ${SH_PROG} -c "[ \"24e7a7b2270daee89c64d3ca5fb3da1a  -\" = \"$(./ip_filter < ${CMAKE_SOURCE_DIR}/ip_filter.tsv | ${MD5_PROG})\" ]")
 endif()
 
 
